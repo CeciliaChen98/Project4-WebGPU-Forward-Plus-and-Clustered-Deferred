@@ -29,6 +29,16 @@ export class Lights {
     moveLightsComputePipeline: GPUComputePipeline;
 
     // TODO-2: add layouts, pipelines, textures, etc. needed for light clustering here
+    
+    clusterComputeBindGroupLayout: GPUBindGroupLayout;
+    clusterComputeBindGroup: GPUBindGroup;
+    clusterComputePipeline: GPUComputePipeline;
+    clusterSetBuffer: GPUBuffer;
+
+    static readonly CLUSTER_X = 16;
+    static readonly CLUSTER_Y = 9;
+    static readonly CLUSTER_Z = 24;
+    static readonly MAX_LIGHTS_PER_CLUSTER = 64;
 
     constructor(camera: Camera) {
         this.camera = camera;
@@ -94,6 +104,63 @@ export class Lights {
         });
 
         // TODO-2: initialize layouts, pipelines, textures, etc. needed for light clustering here
+        const BYTES_PER_CLUSTER = 16 + 4 * Lights.MAX_LIGHTS_PER_CLUSTER;
+        const numClusters = Lights.CLUSTER_X * Lights.CLUSTER_Y * Lights.CLUSTER_Z;
+        const clusterBufSize = 16 + numClusters * BYTES_PER_CLUSTER;
+
+        this.clusterSetBuffer = device.createBuffer({
+            label: 'ClusterSet',
+            size: clusterBufSize,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
+        });
+
+        device.queue.writeBuffer(this.clusterSetBuffer, 0, new Uint32Array([numClusters, 0, 0, 0]));
+
+        // ---- Clustering compute bind group layout ----
+        this.clusterComputeBindGroupLayout = device.createBindGroupLayout({
+            label: 'cluster compute bind group layout',
+            entries: [
+                { // camera
+                    binding: 0,
+                    visibility: GPUShaderStage.COMPUTE,
+                    buffer: { type: 'uniform' }
+                },
+                { // light set
+                    binding: 1,
+                    visibility: GPUShaderStage.COMPUTE,
+                    buffer: { type: 'read-only-storage' }
+                },
+                { // cluster set
+                    binding: 2,
+                    visibility: GPUShaderStage.COMPUTE,
+                    buffer: { type: 'storage' }
+                },
+            ]
+        });
+
+        this.clusterComputeBindGroup = device.createBindGroup({
+            label: 'cluster compute bind group',
+            layout: this.clusterComputeBindGroupLayout,
+            entries: [
+                { binding: 0, resource: { buffer: this.camera.uniformsBuffer } },
+                { binding: 1, resource: { buffer: this.lightSetStorageBuffer } },
+                { binding: 2, resource: { buffer: this.clusterSetBuffer } },
+            ]
+        });
+
+        this.clusterComputePipeline = device.createComputePipeline({
+            layout: device.createPipelineLayout({
+                label: 'cluster compute pipeline layout',
+                bindGroupLayouts: [ this.clusterComputeBindGroupLayout ]
+            }),
+            compute: {
+                module: device.createShaderModule({
+                    label: 'cluster cs',
+                    code: shaders.clusteringComputeSrc,
+                }),
+                entryPoint: 'main',
+            }
+          });
     }
 
     private populateLightsBuffer() {
@@ -110,9 +177,23 @@ export class Lights {
         device.queue.writeBuffer(this.lightSetStorageBuffer, 0, new Uint32Array([this.numLights]));
     }
 
+    
     doLightClustering(encoder: GPUCommandEncoder) {
         // TODO-2: run the light clustering compute pass(es) here
         // implementing clustering here allows for reusing the code in both Forward+ and Clustered Deferred
+        const pass = encoder.beginComputePass();
+        pass.setPipeline(this.clusterComputePipeline);
+
+        pass.setBindGroup(0, this.clusterComputeBindGroup);
+
+        const numClusters =
+            Lights.CLUSTER_X * Lights.CLUSTER_Y * Lights.CLUSTER_Z;
+
+        const wgSize = 64;
+        const numGroups = Math.ceil(numClusters / wgSize);
+
+        pass.dispatchWorkgroups(numGroups);
+        pass.end();
     }
 
     // CHECKITOUT: this is where the light movement compute shader is dispatched from the host

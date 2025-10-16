@@ -1,4 +1,8 @@
 // CHECKITOUT: code that you add here will be prepended to all shaders
+const CLUSTER_X : u32 = 16u;
+const CLUSTER_Y : u32 = 9u;
+const CLUSTER_Z : u32 = 24u;
+const MAX_LIGHTS_PER_CLUSTER : u32 = 64u;
 
 struct Light {
     pos: vec3f,
@@ -10,10 +14,22 @@ struct LightSet {
     lights: array<Light>
 }
 
-// TODO-2: you may want to create a ClusterSet struct similar to LightSet
+struct Cluster {
+    numLights : u32,
+    lights : array<u32> // light indices
+}
+
+struct ClusterSet {
+    numClusters : u32,
+    clusters : array<Cluster>,
+}
 
 struct CameraUniforms {
-    // TODO-1.3: add an entry for the view proj mat (of type mat4x4f)
+    viewProjMat : mat4x4f,
+    invProjMat: mat4x4f,
+    screenSize : vec2f,
+    zNear : f32,
+    zFar : f32
 }
 
 // CHECKITOUT: this special attenuation function ensures lights don't affect geometry outside the maximum light radius
@@ -27,4 +43,10 @@ fn calculateLightContrib(light: Light, posWorld: vec3f, nor: vec3f) -> vec3f {
 
     let lambert = max(dot(nor, normalize(vecToLight)), 0.f);
     return light.color * lambert * rangeAttenuation(distToLight);
+}
+
+fn intersects_aabb(lightPos : vec3f, bmin : vec3f, bmax : vec3f) -> bool {
+    let q = clamp(lightPos, bmin, bmax);
+    let d  = lightPos - q;
+    return length(d) <= ${lightRadius};
 }
