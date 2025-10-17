@@ -13,13 +13,6 @@ fn view_space(px : f32, py : f32, view_z : f32) -> vec3f {
     return view.xyz * z_target / view.z;
 }
 
-fn intersects_aabb(lightPos : vec3f, bmin : vec3f, bmax : vec3f) -> bool {
-    let q = clamp(lightPos, bmin, bmax);
-    let d = lightPos - q;
-    let dist2 = dot(d, d);
-    return dist2 <= SQUARE_R;
-}
-
 @compute
 @workgroup_size(16, 9, 1)
 fn main(@builtin(global_invocation_id) globalIdx: vec3u) {
