@@ -28,7 +28,6 @@ export class Lights {
     moveLightsComputeBindGroup: GPUBindGroup;
     moveLightsComputePipeline: GPUComputePipeline;
 
-    // TODO-2: add layouts, pipelines, textures, etc. needed for light clustering here
     
     clusterComputeBindGroupLayout: GPUBindGroupLayout;
     clusterComputeBindGroup: GPUBindGroup;
@@ -37,8 +36,8 @@ export class Lights {
 
     static readonly CLUSTER_X = 16;
     static readonly CLUSTER_Y = 9;
-    static readonly CLUSTER_Z = 12;
-    static readonly MAX_LIGHTS_PER_CLUSTER = 500;
+    static readonly CLUSTER_Z = 24;
+    static readonly MAX_LIGHTS_PER_CLUSTER = 1024;
 
     constructor(camera: Camera) {
         this.camera = camera;
@@ -103,7 +102,6 @@ export class Lights {
             }
         });
 
-        // TODO-2: initialize layouts, pipelines, textures, etc. needed for light clustering here
         const BYTES_PER_CLUSTER = 16 + 4 * Lights.MAX_LIGHTS_PER_CLUSTER;
         const numClusters = Lights.CLUSTER_X * Lights.CLUSTER_Y * Lights.CLUSTER_Z;
         const clusterBufSize = 16 + numClusters * BYTES_PER_CLUSTER;

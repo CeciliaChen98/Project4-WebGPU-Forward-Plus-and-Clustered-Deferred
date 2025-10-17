@@ -16,11 +16,15 @@ fn cluster_coords(worldPos: vec3f) -> vec3u {
     let clip = camera.viewProjMat * vec4f(worldPos, 1.0);
     let ndc = clip.xyz / clip.w;                  
     let view = camera.invProjMat * vec4f(ndc, 1.0);
+    let viewPos = view.xyz / view.w;
+    let zViewPositive = -viewPos.z; 
 
     let x = u32((ndc.x + 1.0) * 0.5 * f32(CLUSTER_X));
     let y = u32((ndc.y + 1.0) * 0.5 * f32(CLUSTER_Y));
-    let dz = (camera.zFar - camera.zNear) / f32(CLUSTER_Z);
-    let z = u32((-view.z - camera.zNear) / dz);
+    let depthRange = camera.zFar - camera.zNear;
+    let znorm = clamp((zViewPositive - camera.zNear) / depthRange, 0.0, 1.0);
+    let t = pow(znorm, 1.0 / 2.0);
+    let z = u32(clamp(floor(t * f32(CLUSTER_Z)), 0.0, f32(CLUSTER_Z - 1u)));
     return vec3u(x, y, z);
 }
 

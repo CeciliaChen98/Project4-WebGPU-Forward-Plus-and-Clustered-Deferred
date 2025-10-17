@@ -1,8 +1,8 @@
 // CHECKITOUT: code that you add here will be prepended to all shaders
 const CLUSTER_X : u32 = 16u;
 const CLUSTER_Y : u32 = 9u;
-const CLUSTER_Z : u32 = 12u;
-const MAX_LIGHTS_PER_CLUSTER : u32 = 500;
+const CLUSTER_Z : u32 = 24u;
+const MAX_LIGHTS_PER_CLUSTER : u32 = 1024u;
 const SQUARE_R : f32 = ${lightRadius} * ${lightRadius};
 
 struct Light {
@@ -29,6 +29,7 @@ struct CameraUniforms {
     viewProjMat : mat4x4f,
     invProjMat: mat4x4f,
     viewMat: mat4x4f,
+    invViewMat: mat4x4f,
     screenSize : vec2f,
     zNear : f32,
     zFar : f32
@@ -47,9 +48,3 @@ fn calculateLightContrib(light: Light, posWorld: vec3f, nor: vec3f) -> vec3f {
     return light.color * lambert * rangeAttenuation(distToLight);
 }
 
-fn intersects_aabb(lightPos : vec3f, bmin : vec3f, bmax : vec3f) -> bool {
-    let q = clamp(lightPos, bmin, bmax);
-    let d = lightPos - q;
-    let dist2 = dot(d, d);
-    return dist2 <= SQUARE_R;
-}

@@ -13,6 +13,13 @@ fn view_space(px : f32, py : f32, view_z : f32) -> vec3f {
     return view.xyz * z_target / view.z;
 }
 
+fn intersects_aabb(lightPos : vec3f, bmin : vec3f, bmax : vec3f) -> bool {
+    let q = clamp(lightPos, bmin, bmax);
+    let d = lightPos - q;
+    let dist2 = dot(d, d);
+    return dist2 <= SQUARE_R;
+}
+
 @compute
 @workgroup_size(16, 9, 1)
 fn main(@builtin(global_invocation_id) globalIdx: vec3u) {
@@ -45,9 +52,12 @@ fn main(@builtin(global_invocation_id) globalIdx: vec3u) {
     let y0 = f32(y) * tileH;
     let y1 = f32(y + 1u) * tileH;
 
-    let dz = (camera.zFar - camera.zNear) / f32(CLUSTER_Z); 
-    let z0 = camera.zNear + dz * f32(z); 
-    let z1 = min(camera.zFar, z0 + dz);
+    let invZ = 1.0 / f32(CLUSTER_Z);
+    let t0 = f32(z) * invZ;
+    let t1 = f32(z + 1u) * invZ;
+    let depthRange = camera.zFar - camera.zNear;
+    let z0 = camera.zNear + depthRange * pow(t0, 2.0);
+    let z1 = min(camera.zFar, camera.zNear + depthRange * pow(t1, 2.0));
 
     let p00n = view_space(x0, y0, z0);
     let p10n = view_space(x1, y0, z0);
