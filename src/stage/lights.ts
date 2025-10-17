@@ -35,10 +35,10 @@ export class Lights {
     clusterComputePipeline: GPUComputePipeline;
     clusterSetBuffer: GPUBuffer;
 
-    static readonly CLUSTER_X = 16;
-    static readonly CLUSTER_Y = 9;
+    static readonly CLUSTER_X = 32;
+    static readonly CLUSTER_Y = 18;
     static readonly CLUSTER_Z = 24;
-    static readonly MAX_LIGHTS_PER_CLUSTER = 64;
+    static readonly MAX_LIGHTS_PER_CLUSTER = 128;
 
     constructor(camera: Camera) {
         this.camera = camera;
@@ -188,8 +188,7 @@ export class Lights {
 
         const numClusters =
             Lights.CLUSTER_X * Lights.CLUSTER_Y * Lights.CLUSTER_Z;
-
-        const wgSize = 64;
+        const wgSize = shaders.constants.clusteringWorkgroupSize;
         const numGroups = Math.ceil(numClusters / wgSize);
 
         pass.dispatchWorkgroups(numGroups);

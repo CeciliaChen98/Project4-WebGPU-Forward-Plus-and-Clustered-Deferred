@@ -25,9 +25,9 @@ fn cluster_coords(worldPos: vec3f) -> vec3u {
     let zViewPositive = -viewPos.z;                         // view forward is -Z
 
     let dz = (camera.zFar - camera.zNear) / f32(CLUSTER_Z);
-    var cz = u32(clamp(floor((zViewPositive - camera.zNear) / dz), 0.0, f32(CLUSTER_Z - 1u)));
+    var z = u32(clamp(floor((zViewPositive - camera.zNear) / dz), 0.0, f32(CLUSTER_Z - 1u)));
 
-    return vec3u(cx, cy, cz);
+    return vec3u(x, y, z);
 }
 
 // ------------------------------------

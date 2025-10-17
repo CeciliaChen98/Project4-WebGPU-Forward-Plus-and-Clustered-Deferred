@@ -3,7 +3,7 @@ import { toRadians } from "../math_util";
 import { device, canvas, fovYDegrees, aspectRatio } from "../renderer";
 
 class CameraUniforms {
-    readonly buffer = new ArrayBuffer(36 * 4);
+    readonly buffer = new ArrayBuffer(52 * 4);
     private readonly floatView = new Float32Array(this.buffer);
 
     set viewProjMat(mat: Float32Array) {
@@ -12,11 +12,14 @@ class CameraUniforms {
     set invProjMat(mat: Float32Array) {
         this.floatView.set(mat.subarray(0,16), 16);
     }
+    set viewMat(mat: Float32Array) {
+        this.floatView.set(mat.subarray(0,16), 32);
+    }
     set screenSize(size: Float32Array) {
-        this.floatView.set(size.subarray(0,2), 32);
+        this.floatView.set(size.subarray(0,2), 48);
     }
     set depthRange(range: Float32Array) {
-        this.floatView.set(range.subarray(0,2), 34);
+        this.floatView.set(range.subarray(0,2), 50);
     }
 }
 
@@ -25,6 +28,7 @@ export class Camera {
     uniformsBuffer: GPUBuffer;
 
     projMat: Mat4 = mat4.create();
+    invProjMat: Mat4 = mat4.create();
     cameraPos: Vec3 = vec3.create(-7, 2, 0);
     cameraFront: Vec3 = vec3.create(0, 0, -1);
     cameraUp: Vec3 = vec3.create(0, 1, 0);
@@ -48,6 +52,7 @@ export class Camera {
         // note that you can add more variables (e.g. inverse proj matrix) to this buffer in later parts of the assignment
 
         this.projMat = mat4.perspective(toRadians(fovYDegrees), aspectRatio, Camera.nearPlane, Camera.farPlane);
+        this.invProjMat = mat4.invert(this.projMat);
 
         this.rotateCamera(0, 0); // set initial camera vectors
 
@@ -137,13 +142,12 @@ export class Camera {
         const viewMat = mat4.lookAt(this.cameraPos, lookPos, [0, 1, 0]);
         const viewProjMat = mat4.mul(this.projMat, viewMat);
         this.uniforms.viewProjMat = viewProjMat;
-        
-        const invProjMat = mat4.invert(mat4.create(), this.projMat)!; // invert projection
-        this.uniforms.invProjMat = invProjMat;
+        this.uniforms.viewMat = viewMat;
+        this.uniforms.invProjMat = this.invProjMat; 
 
         this.uniforms.screenSize = new Float32Array([canvas.width,canvas.height]);
         this.uniforms.depthRange = new Float32Array([Camera.nearPlane, Camera.farPlane]);
-
+       
         device.queue.writeBuffer(this.uniformsBuffer, 0, this.uniforms.buffer);
     }
 }

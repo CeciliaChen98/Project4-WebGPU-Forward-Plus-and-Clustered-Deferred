@@ -3,8 +3,8 @@
 @group(${bindGroup_scene}) @binding(2) var<storage, read_write> clusters: ClusterSet;
 
 fn view_space(px : f32, py : f32, view_z : f32) -> vec3f {
-  let ndc_x = ((px + 0.5) / camera.screenSize.x) * 2.0 - 1.0;
-  let ndc_y = ((py + 0.5) / camera.screenSize.y) * 2.0 - 1.0;
+  let ndc_x = (px / camera.screenSize.x) * 2.0 - 1.0;
+  let ndc_y = 1.0 - (py / camera.screenSize.y) * 2.0;
 
   let clip_near = vec4f(ndc_x, ndc_y, 0.0, 1.0);
   let clip_far  = vec4f(ndc_x, ndc_y, 1.0, 1.0);
@@ -21,9 +21,13 @@ fn view_space(px : f32, py : f32, view_z : f32) -> vec3f {
 }
 
 @compute
-@workgroup_size(64)
-fn main(idx: u32)
-{
+@workgroup_size(${clusteringWorkgroupSize})
+fn main(@builtin(global_invocation_id) globalIdx: vec3u) {
+    let idx = globalIdx.x;
+    let max_cluster = CLUSTER_X * CLUSTER_Y * CLUSTER_Z;
+    if(idx >= max_cluster){
+        return;
+    }
     let x = idx % CLUSTER_X;
     let y = (idx / CLUSTER_X) % CLUSTER_Y;
     let z = idx / (CLUSTER_X * CLUSTER_Y);
@@ -64,9 +68,6 @@ fn main(idx: u32)
     var bmax = max(max(max(p00n, p10n), max(p01n, p11n)),
                    max(max(p00f, p10f), max(p01f, p11f)));
 
-    //ClusterSet.clusters[idx].bmin = bmin;
-    //ClusterSet.clusters[idx].bmax = bmax;
-
     // ------------------------------------
     // Assigning lights to clusters:
     // ------------------------------------
@@ -83,7 +84,8 @@ fn main(idx: u32)
     for (var i = 0u; i < lights.numLights; i++) {
         if (count >= MAX_LIGHTS_PER_CLUSTER) { break; }
         let L = lights.lights[i];
-        if (intersects_aabb(L.pos, bmin, bmax)) {
+        let lightPos : vec3f = (camera.viewMat * vec4f(L.pos, 1.0)).xyz;
+        if (intersects_aabb(lightPos, bmin, bmax)) {
             clusters.clusters[idx].lights[count] = i;
             count = count + 1u;
         }
