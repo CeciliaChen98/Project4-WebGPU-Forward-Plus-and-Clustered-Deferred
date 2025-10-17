@@ -51,5 +51,5 @@ fn intersects_aabb(lightPos : vec3f, bmin : vec3f, bmax : vec3f) -> bool {
     let q = clamp(lightPos, bmin, bmax);
     let d = lightPos - q;
     let dist2 = dot(d, d);
-    return dist2 <= ${lightRadius} * ${lightRadius};
+    return dist2 <= 4.f;
 }
