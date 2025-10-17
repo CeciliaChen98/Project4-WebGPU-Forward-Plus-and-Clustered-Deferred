@@ -1,5 +1,3 @@
-@group(${bindGroup_scene}) @binding(0) var<uniform> camera: CameraUniforms;
-
 @group(${bindGroup_material}) @binding(0) var diffuseTex     : texture_2d<f32>;
 @group(${bindGroup_material}) @binding(1) var diffuseTexSampler : sampler;
 
@@ -14,7 +12,7 @@ struct VertexOutput
 struct GBufferOut {
     @location(0) albedo : vec4f,
     @location(1) nor : vec4f,
-    @location(2) viewZ: f32
+    @location(2) worldZ: f32
 };
 
 
@@ -23,12 +21,9 @@ fn main(in: VertexOutput) -> GBufferOut {
 
     let diffuseColor = textureSample(diffuseTex, diffuseTexSampler, in.uv);
 
-    // Compute positive linear view-Z (needs camera.viewMat)
-    let viewPos = (camera.viewMat * vec4f(in.pos, 1.0)).xyz;
-
     var out : GBufferOut;
     out.albedo = diffuseColor; 
     out.nor = vec4f(normalize(in.nor), 1.0); 
-    out.viewZ = -viewPos.z;
+    out.worldZ = in.fragPos.z;
     return out;
 }

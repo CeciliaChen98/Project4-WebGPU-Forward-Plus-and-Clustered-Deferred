@@ -17,12 +17,10 @@ export class ClusteredDeferredRenderer extends renderer.Renderer {
     gAlbedoView: GPUTextureView;
     gNormal: GPUTexture;
     gNormalView: GPUTextureView;
-    gViewZ: GPUTexture;
-    gViewZView: GPUTextureView;
     gSampler: GPUSampler;
 
-    depthTexture: GPUTexture;
-    depthTextureView: GPUTextureView;
+    gWorldZ: GPUTexture;
+    gWorldZView: GPUTextureView;
 
     scenePipeline: GPURenderPipeline;
     gbufferPipeline: GPURenderPipeline;
@@ -75,61 +73,54 @@ export class ClusteredDeferredRenderer extends renderer.Renderer {
         // ---------------------------------------------------------------------
         // Create G-buffer textures (albedo, normal, viewZ) and sampler
         // ---------------------------------------------------------------------
-        const size: GPUExtent3D = [renderer.canvas.width, renderer.canvas.height];
         this.gAlbedo = renderer.device.createTexture({
             label: "gAlbedo",
-            size,
-            format: "rgba8unorm",
+            size : [renderer.canvas.width, renderer.canvas.height],
+            format: "rgba16float",
             usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING
         });
         this.gAlbedoView = this.gAlbedo.createView();
 
         this.gNormal = renderer.device.createTexture({
             label: "gNormal",
-            size,
-            format: "rgba8unorm",
+            size: [renderer.canvas.width, renderer.canvas.height],
+            format: "rgba16float",
             usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING
         });
         this.gNormalView = this.gNormal.createView();
 
-        this.gViewZ = renderer.device.createTexture({
+        this.gWorldZ = renderer.device.createTexture({
             label: "gViewZ",
-            size,
-            format: "r32float",
+            size: [renderer.canvas.width, renderer.canvas.height],
+            format: "depth24plus",
             usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING
         });
-        this.gViewZView = this.gViewZ.createView();
-
-        this.gSampler = renderer.device.createSampler({
-            magFilter: "linear",
-            minFilter: "linear",
-            mipmapFilter: "nearest",
-            addressModeU: "clamp-to-edge",
-            addressModeV: "clamp-to-edge"
-        });
+        this.gWorldZView = this.gWorldZ.createView();
         
+        this.gSampler = renderer.device.createSampler();
+
         this.gbufferBindGroupLayout = renderer.device.createBindGroupLayout({
             label: "gbuffer bind group layout",
             entries: [
                 { // gAlbedo
                     binding: 0,
                     visibility: GPUShaderStage.FRAGMENT,
-                    texture: { sampleType: "float" }
+                    texture: {}
                 },
                 { // gNormal
                     binding: 1,
                     visibility: GPUShaderStage.FRAGMENT,
-                    texture: { sampleType: "float" }
+                    texture: {}
                 },
                 { // gViewZ
                     binding: 2,
                     visibility: GPUShaderStage.FRAGMENT,
-                    texture: { sampleType: "float" }
+                    texture: { sampleType: "depth" }
                 },
                 { // sampler
                     binding: 3,
                     visibility: GPUShaderStage.FRAGMENT,
-                    sampler: {}
+                    sampler: { type: 'non-filtering' }
                 }
             ]
         });
@@ -143,18 +134,37 @@ export class ClusteredDeferredRenderer extends renderer.Renderer {
             entries: [
                 { binding: 0, resource: this.gAlbedoView },
                 { binding: 1, resource: this.gNormalView },
-                { binding: 2, resource: this.gViewZView },
+                { binding: 2, resource: this.gWorldZView },
                 { binding: 3, resource: this.gSampler }
             ]
         });
 
-        this.depthTexture = renderer.device.createTexture({
-            size,
-            format: "depth24plus",
-            usage: GPUTextureUsage.RENDER_ATTACHMENT
+        this.scenePipeline = renderer.device.createRenderPipeline({
+            layout: renderer.device.createPipelineLayout({
+                label: "clustered deferred fullscreen layout",
+                bindGroupLayouts: [
+                    this.sceneUniformsBindGroupLayout,
+                    this.gbufferBindGroupLayout
+                ]
+            }),
+            vertex: {
+                module: renderer.device.createShaderModule({
+                    label: "fullscreen vert",
+                    code: shaders.clusteredDeferredFullscreenVertSrc
+                }),
+            },
+            fragment: {
+                module: renderer.device.createShaderModule({
+                    label: "fullscreen frag",
+                    code: shaders.clusteredDeferredFullscreenFragSrc
+                }),
+                targets: [
+                    {
+                        format: renderer.canvasFormat
+                    }
+                ]
+            }
         });
-        this.depthTextureView = this.depthTexture.createView();
-
         // ---------------------------------------------------------------------
         // Create G-buffer pipeline (geometry pass)
         // ---------------------------------------------------------------------
@@ -185,42 +195,12 @@ export class ClusteredDeferredRenderer extends renderer.Renderer {
                     code: shaders.clusteredDeferredFragSrc
                 }),
                 targets: [
-                    { format: "rgba8unorm" }, // albedo
-                    { format: "rgba8unorm" }, // normal
-                    { format: "r32float" }    // viewZ
+                    { format: "rgba16float" }, // albedo
+                    { format: "rgba16float" } //normal
                 ]
             }
         });
 
-        this.scenePipeline = renderer.device.createRenderPipeline({
-            layout: renderer.device.createPipelineLayout({
-                label: "clustered deferred fullscreen layout",
-                bindGroupLayouts: [
-                    this.gbufferBindGroupLayout,
-                    this.sceneUniformsBindGroupLayout,
-                    renderer.materialBindGroupLayout,
-                    this.gbufferBindGroupLayout 
-                ]
-            }),
-            vertex: {
-                module: renderer.device.createShaderModule({
-                    label: "fullscreen vert",
-                    code: shaders.clusteredDeferredFullscreenVertSrc
-                }),
-                entryPoint: "main"
-            },
-            fragment: {
-                module: renderer.device.createShaderModule({
-                    label: "fullscreen frag",
-                    code: shaders.clusteredDeferredFullscreenFragSrc
-                }),
-                targets: [
-                    {
-                        format: renderer.canvasFormat
-                    }
-                ]
-            }
-        });
     }
 
     override draw() {
@@ -238,25 +218,19 @@ export class ClusteredDeferredRenderer extends renderer.Renderer {
             colorAttachments: [
                 {
                     view: this.gAlbedoView,
-                    clearValue: [0.0, 0.0, 0.0, 0.0],
+                    clearValue: [0.0, 0.0, 0.0, 1.0],
                     loadOp: "clear",
                     storeOp: "store"
                 },
                 {
                     view: this.gNormalView,
-                    clearValue: [0.5, 0.5, 1.0, 0.0], // default normal
-                    loadOp: "clear",
-                    storeOp: "store"
-                },
-                {
-                    view: this.gViewZView,
-                    clearValue: 0.0,
+                    clearValue: [0.5, 0.5, 1.0, 0.0], 
                     loadOp: "clear",
                     storeOp: "store"
                 }
             ],
             depthStencilAttachment: {
-                view: this.depthTextureView,
+                view: this.gWorldZView,
                 depthClearValue: 1.0,
                 depthLoadOp: "clear",
                 depthStoreOp: "store"
@@ -283,7 +257,7 @@ export class ClusteredDeferredRenderer extends renderer.Renderer {
             colorAttachments: [
                 {
                     view: canvasTextureView,
-                    clearValue: [0.0, 0.0, 0.0, 0.0],
+                    clearValue: [0.0, 0.0, 0.0, 1.0],
                     loadOp: "clear",
                     storeOp: "store"
                 }
@@ -292,8 +266,8 @@ export class ClusteredDeferredRenderer extends renderer.Renderer {
 
         fpass.setPipeline(this.scenePipeline);
 
-        fpass.setBindGroup(shaders.constants.bindGroup_gbuffer, this.gbufferBindGroup);
         fpass.setBindGroup(shaders.constants.bindGroup_scene, this.sceneUniformsBindGroup);
+        fpass.setBindGroup(shaders.constants.bindGroup_gbuffer, this.gbufferBindGroup);
 
         fpass.draw(3, 1, 0, 0);
 
