@@ -50,6 +50,8 @@ export class Camera {
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
         });
         // note that you can add more variables (e.g. inverse proj matrix) to this buffer in later parts of the assignment
+        this.uniforms.screenSize = new Float32Array([canvas.width,canvas.height]);
+        this.uniforms.depthRange = new Float32Array([Camera.nearPlane, Camera.farPlane]);
 
         this.projMat = mat4.perspective(toRadians(fovYDegrees), aspectRatio, Camera.nearPlane, Camera.farPlane);
         this.invProjMat = mat4.invert(this.projMat);
@@ -144,9 +146,6 @@ export class Camera {
         this.uniforms.viewProjMat = viewProjMat;
         this.uniforms.viewMat = viewMat;
         this.uniforms.invProjMat = this.invProjMat; 
-
-        this.uniforms.screenSize = new Float32Array([canvas.width,canvas.height]);
-        this.uniforms.depthRange = new Float32Array([Camera.nearPlane, Camera.farPlane]);
        
         device.queue.writeBuffer(this.uniformsBuffer, 0, this.uniforms.buffer);
     }

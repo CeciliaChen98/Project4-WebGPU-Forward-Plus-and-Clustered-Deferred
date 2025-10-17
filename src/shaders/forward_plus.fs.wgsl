@@ -15,18 +15,12 @@ struct FragmentInput
 fn cluster_coords(worldPos: vec3f) -> vec3u {
     let clip = camera.viewProjMat * vec4f(worldPos, 1.0);
     let ndc = clip.xyz / clip.w;                  
-    let uv  = 0.5 * (ndc.xy + vec2f(1.0, 1.0));   
-
-    var x = u32(clamp(floor(uv.x * f32(CLUSTER_X)), 0.0, f32(CLUSTER_X - 1u)));
-    var y = u32(clamp(floor(uv.y * f32(CLUSTER_Y)), 0.0, f32(CLUSTER_Y - 1u)));
-
     let view = camera.invProjMat * vec4f(ndc, 1.0);
-    let viewPos = view.xyz / view.w;
-    let zViewPositive = -viewPos.z;                         // view forward is -Z
 
+    let x = u32((ndc.x + 1.0) * 0.5 * f32(CLUSTER_X));
+    let y = u32((ndc.y + 1.0) * 0.5 * f32(CLUSTER_Y));
     let dz = (camera.zFar - camera.zNear) / f32(CLUSTER_Z);
-    var z = u32(clamp(floor((zViewPositive - camera.zNear) / dz), 0.0, f32(CLUSTER_Z - 1u)));
-
+    let z = u32((-view.z - camera.zNear) / dz);
     return vec3u(x, y, z);
 }
 

@@ -35,10 +35,10 @@ export class Lights {
     clusterComputePipeline: GPUComputePipeline;
     clusterSetBuffer: GPUBuffer;
 
-    static readonly CLUSTER_X = 32;
-    static readonly CLUSTER_Y = 18;
-    static readonly CLUSTER_Z = 24;
-    static readonly MAX_LIGHTS_PER_CLUSTER = 128;
+    static readonly CLUSTER_X = 16;
+    static readonly CLUSTER_Y = 9;
+    static readonly CLUSTER_Z = 12;
+    static readonly MAX_LIGHTS_PER_CLUSTER = 500;
 
     constructor(camera: Camera) {
         this.camera = camera;
@@ -179,19 +179,17 @@ export class Lights {
 
     
     doLightClustering(encoder: GPUCommandEncoder) {
-        // TODO-2: run the light clustering compute pass(es) here
         // implementing clustering here allows for reusing the code in both Forward+ and Clustered Deferred
         const pass = encoder.beginComputePass();
         pass.setPipeline(this.clusterComputePipeline);
 
         pass.setBindGroup(0, this.clusterComputeBindGroup);
 
-        const numClusters =
-            Lights.CLUSTER_X * Lights.CLUSTER_Y * Lights.CLUSTER_Z;
-        const wgSize = shaders.constants.clusteringWorkgroupSize;
-        const numGroups = Math.ceil(numClusters / wgSize);
+        const groupsX = Math.ceil(Lights.CLUSTER_X / 16);
+        const groupsY = Math.ceil(Lights.CLUSTER_Y / 9);
 
-        pass.dispatchWorkgroups(numGroups);
+        pass.dispatchWorkgroups(groupsX, groupsY, Lights.CLUSTER_Z);
+
         pass.end();
     }
 

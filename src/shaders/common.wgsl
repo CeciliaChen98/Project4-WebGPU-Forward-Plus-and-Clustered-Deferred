@@ -1,8 +1,9 @@
 // CHECKITOUT: code that you add here will be prepended to all shaders
-const CLUSTER_X : u32 = 32u;
-const CLUSTER_Y : u32 = 18u;
-const CLUSTER_Z : u32 = 24u;
-const MAX_LIGHTS_PER_CLUSTER : u32 = 128u;
+const CLUSTER_X : u32 = 16u;
+const CLUSTER_Y : u32 = 9u;
+const CLUSTER_Z : u32 = 12u;
+const MAX_LIGHTS_PER_CLUSTER : u32 = 500;
+const SQUARE_R : f32 = ${lightRadius} * ${lightRadius};
 
 struct Light {
     pos: vec3f,
@@ -50,5 +51,5 @@ fn intersects_aabb(lightPos : vec3f, bmin : vec3f, bmax : vec3f) -> bool {
     let q = clamp(lightPos, bmin, bmax);
     let d = lightPos - q;
     let dist2 = dot(d, d);
-    return dist2 <= (${lightRadius} * ${lightRadius});
+    return dist2 <= SQUARE_R;
 }

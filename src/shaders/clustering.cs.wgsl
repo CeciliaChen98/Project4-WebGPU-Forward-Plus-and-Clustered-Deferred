@@ -3,34 +3,30 @@
 @group(${bindGroup_scene}) @binding(2) var<storage, read_write> clusters: ClusterSet;
 
 fn view_space(px : f32, py : f32, view_z : f32) -> vec3f {
-  let ndc_x = (px / camera.screenSize.x) * 2.0 - 1.0;
-  let ndc_y = 1.0 - (py / camera.screenSize.y) * 2.0;
+    let ndc_x = (px / camera.screenSize.x) * 2.0 - 1.0;
+    let ndc_y = (py / camera.screenSize.y) * 2.0 - 1.0;
 
-  let clip_near = vec4f(ndc_x, ndc_y, 0.0, 1.0);
-  let clip_far  = vec4f(ndc_x, ndc_y, 1.0, 1.0);
+    var view = camera.invProjMat * vec4f(ndc_x, ndc_y, -1.0, 1.0);
+    view /= view.w;
 
-  let v_near = camera.invProjMat * clip_near;
-  let v_far  = camera.invProjMat * clip_far;
-
-  let p_near = v_near.xyz / v_near.w; 
-  let p_far  = v_far.xyz  / v_far.w; 
-
-  let z_target = -view_z;
-  let t = clamp((z_target - p_near.z) / (p_far.z - p_near.z), 0.0, 1.0);
-  return mix(p_near, p_far, t);
+    let z_target = -view_z;
+    return view.xyz * z_target / view.z;
 }
 
 @compute
-@workgroup_size(${clusteringWorkgroupSize})
+@workgroup_size(16, 9, 1)
 fn main(@builtin(global_invocation_id) globalIdx: vec3u) {
-    let idx = globalIdx.x;
-    let max_cluster = CLUSTER_X * CLUSTER_Y * CLUSTER_Z;
-    if(idx >= max_cluster){
+
+    let x = globalIdx.x;
+    let y = globalIdx.y;
+    let z = globalIdx.z;
+
+    if (x >= CLUSTER_X || y >= CLUSTER_Y || z >= CLUSTER_Z) {
         return;
     }
-    let x = idx % CLUSTER_X;
-    let y = (idx / CLUSTER_X) % CLUSTER_Y;
-    let z = idx / (CLUSTER_X * CLUSTER_Y);
+
+    // linear cluster index used for storage
+    let idx = x + y * CLUSTER_X + z * (CLUSTER_X * CLUSTER_Y);
 
     // ------------------------------------
     // Calculating cluster bounds:
@@ -41,16 +37,16 @@ fn main(@builtin(global_invocation_id) globalIdx: vec3u) {
     //     - Convert these screen and depth bounds into view-space coordinates.
     //     - Store the computed bounding box (AABB) for the cluster.
 
-    let tileW = camera.screenSize.x / f32(CLUSTER_X);
-    let tileH = camera.screenSize.y / f32(CLUSTER_Y);
+    let tileW = f32(camera.screenSize.x) / f32(CLUSTER_X);
+    let tileH = f32(camera.screenSize.y) / f32(CLUSTER_Y);
 
     let x0 = f32(x) * tileW;
     let x1 = f32(x + 1u) * tileW;
     let y0 = f32(y) * tileH;
     let y1 = f32(y + 1u) * tileH;
 
-    let dz = (camera.zFar - camera.zNear) / f32(CLUSTER_Z);
-    let z0 = camera.zNear + dz * f32(z);
+    let dz = (camera.zFar - camera.zNear) / f32(CLUSTER_Z); 
+    let z0 = camera.zNear + dz * f32(z); 
     let z1 = min(camera.zFar, z0 + dz);
 
     let p00n = view_space(x0, y0, z0);
