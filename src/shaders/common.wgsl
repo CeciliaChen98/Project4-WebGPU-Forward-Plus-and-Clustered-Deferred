@@ -2,7 +2,7 @@
 const CLUSTER_X : u32 = 16u;
 const CLUSTER_Y : u32 = 9u;
 const CLUSTER_Z : u32 = 24u;
-const MAX_LIGHTS_PER_CLUSTER : u32 = 1024u;
+const MAX_LIGHTS_PER_CLUSTER : u32 = 1200u;
 
 struct Light {
     pos: vec3f,

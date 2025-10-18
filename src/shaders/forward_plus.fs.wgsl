@@ -43,15 +43,15 @@ fn main(in: FragmentInput) -> @location(0) vec4f
     // Determine which cluster contains the current fragment
     let indices = cluster_coords(in.pos);
     let idx = indices.x + indices.y * CLUSTER_X + indices.z * (CLUSTER_X * CLUSTER_Y);
-    let cluster = clusterSet.clusters[idx];
+    let clusterPtr = &clusterSet.clusters[idx];
 
     // Initialize a variable to accumulate the total light contribution for the fragment.
     var totalLightContrib = vec3f(0, 0, 0);
 
     // For each light in the cluster:
-    for (var lightIdx = 0u; lightIdx < cluster.numLights; lightIdx++) { 
+    for (var lightIdx = 0u; lightIdx < (*clusterPtr).numLights; lightIdx++) { 
         // Access the light's properties using its index.
-        let light = lightSet.lights[cluster.lights[lightIdx]];
+        let light = lightSet.lights[(*clusterPtr).lights[lightIdx]];
         totalLightContrib += calculateLightContrib(light, in.pos, normalize(in.nor));
     }
 

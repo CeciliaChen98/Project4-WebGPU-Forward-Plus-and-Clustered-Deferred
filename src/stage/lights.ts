@@ -37,7 +37,7 @@ export class Lights {
     static readonly CLUSTER_X = 16;
     static readonly CLUSTER_Y = 9;
     static readonly CLUSTER_Z = 24;
-    static readonly MAX_LIGHTS_PER_CLUSTER = 1024;
+    static readonly MAX_LIGHTS_PER_CLUSTER = 1200;
 
     constructor(camera: Camera) {
         this.camera = camera;
